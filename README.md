@@ -12,11 +12,13 @@
 
 [2. 시스템 아키텍처](#2)
 
-[3. 기술 스택](#3)
+[3. 개발 설정](#3)
 
-[4. 프로젝트 산출물](#4)
+[4. 기술 스택](#4)
 
-[5. 데이터 출처](#5)
+[5. 프로젝트 산출물](#5)
+
+[6. 데이터 출처](#6)
 
 <br/>
 <div id = '1'>
@@ -109,9 +111,273 @@
 # 시스템 아키텍처
 ![image](https://user-images.githubusercontent.com/53360337/193612741-8d4d745f-f230-4f2a-a97c-02b06d07a690.png)
 
+<div id = '3'>
+
+## 개발 설정
+
+### 서비스별 포트 번호
+
+| 구분 | 포트번호 |
+| --- | --- |
+| Jenkins | 8080 |
+| Dhabgi | 8081 |
+| React | 8002 |
+| FastAPI | 8003 |
+| MySQL | 3306 |
+| Redis | 6379 |
+
+<br>
+    
+### Dockerfile
+
+```
+# BE/Dockerfile (Django)
+
+From python:3.9.4
+ENV PYTHONUNBUFFERED 1
+RUN apt-get -y update
+RUN apt-get -y install vim 
+RUN mkdir /srv/docker-server
+ADD . /srv/docker-server 
+WORKDIR /srv/docker-server 
+RUN pip3 install --upgrade pip 
+RUN pip3 install -r requirements.txt 
+EXPOSE 8001
+CMD ["python", "manage.py", "runserver", "0.0.0.0:8001"]
+```
+
+```
+# houseketcher/Dockerfile (React)
+
+FROM node:16.15.0 as build-stage
+WORKDIR /app
+COPY package*.json ./
+COPY package-lock.json ./
+RUN npm install
+COPY . .
+RUN npm run build
+FROM nginx:stable-alpine as production-stage
+RUN rm -rf /etc/nginx/conf.d/default.conf
+COPY ./nginx/default.conf /etc/nginx/conf.d/default.conf
+RUN rm -rf /usr/share/nginx/html/*
+COPY --from=build-stage /app/build /usr/share/nginx/html 
+EXPOSE 8002
+CMD ["nginx", "-g","daemon off;"]
+
+```
+
+```
+# fastapi/Dockerfile (React)
+
+FROM python:3.10
+RUN apt-get -y update
+RUN apt-get -y install vim 
+RUN mkdir /app
+WORKDIR /app
+COPY requirements.txt ./
+RUN pip3 install --upgrade pip 
+RUN pip3 install -r requirements.txt 
+COPY . /app
+EXPOSE 8003
+
+```
+
+### Docker-Compose.yml
+
+```
+version: "3.8"
+services:
+  react:
+    container_name: homesketcher-react
+    build: ./housesketcher/
+    restart: on-failure
+    volumes:
+      - ./housesketcher/nginx/:/etc/nginx/conf.d/
+    ports:
+      - 8002:8002
+ 
+ 
+  redis:
+    container_name: redis
+    image: redis:7-alpine
+    ports:
+      - 6379:6379
+    command: redis-server --save 20 1 --loglevel warning --requirepass eYVX7EwVmmxKPCDmwMtyKVge8oLd2t81
+    volumes:
+      - /redis/data:/data
+      - /redis/conf/redis.conf:/usr/local/conf/redis.conf
+ 
+  mysql:
+    container_name: mysql
+    image: mysql:latest
+    restart: unless-stopped
+    environment:
+      - MYSQL_ROOT_PASSWORD=clsfurtkanth
+      - MYSQL_DATABASE=ssafy
+      - MYSQL_USER=ssafy
+      - MYSQL_PASSWORD=clsfurtkanth
+    ports:
+      - 3306:3306
+```
+
+### Jenkins 설정 파일
+
+```
+pipeline {
+    agent any
+ 
+ 
+    stages {
+        stage('Prepare') {
+            steps {
+                sh 'echo "Clonning Repository"'
+                git branch: 'deploy',
+                    url: 'https://lab.ssafy.com/s07-bigdata-recom-sub2/S07P22B304.git',
+                    credentialsId: 'homesketcher'
+            }
+            post {
+                success {
+                     sh 'echo "Successfully Cloned Repository"'
+                 }
+                 failure {
+                     sh 'echo "Fail Cloned Repository"'
+                 }
+            }
+        }
+ 
+ 
+        stage('Docker stop'){
+            steps {
+                dir('BE'){
+                    sh 'echo "Docker Container Stop"'
+    //              도커 컴포즈 다운
+                    // sh 'curl -L https://github.com/docker/compose/releases/download/1.29.2/docker-compose-$(uname -s)-$(uname -m) -o /usr/local/bin/docker-compose'
+    //              해당 도커 컴포즈 다운한 경로로 권한 설정
+                    // sh 'chmod -R 777 /usr/local/bin'
+                    // sh 'chmod +x /usr/local/bin/docker-compose'
+    //              기존 백그라운드에 돌아가던 컨테이너 중지
+                    sh 'docker compose stop'
+                }
+ 
+ 
+            }
+            post {
+                 failure {
+                     sh 'echo "Docker Fail"'
+                }
+            }
+        }
+ 
+        stage('RM Docker'){
+            steps {
+                
+                sh 'echo "Remove Docker"'
+ 
+                //정지된 도커 컨테이너 찾아서 컨테이너 ID로 삭제함
+                sh '''
+                    result=$( docker container ls -a --filter "name=homesketcher*" -q )
+                    if [ -n "$result" ]
+                    then
+                        docker rm $(docker container ls -a --filter "name=homesketcher*" -q)
+                    else
+                        echo "No such containers"
+                    fi
+                '''
+ 
+                // homesketcher로 시작하는 이미지 찾아서 삭제함
+                sh '''
+                    result=$( docker images -f "reference=homesketcher*" -q )
+                    if [ -n "$result" ]
+                    then
+                        docker rmi -f $(docker images -f "reference=homesketcher*" -q)
+                    else
+                        echo "No such container images"
+                    fi
+                '''
+ 
+                // 안쓰는이미지 -> <none> 태그 이미지 찾아서 삭제함
+                sh '''
+                    result=$(docker images -f "dangling=true" -q)
+                    if [ -n "$result" ]
+                    then
+                        docker rmi -f $(docker images -f "dangling=true" -q)
+                    else
+                        echo "No such container images"
+                    fi
+                '''
+ 
+            }
+            post {
+                 failure {
+                     sh 'echo "Remove Fail"'
+                }
+            }
+        }
+ 
+        stage('Bulid & Run') {
+            steps {
+                dir('BE'){
+                    sh 'echo " Image Bulid Start"'
+                    script {
+ 
+//                         업데이트된 코드로 빌드 및 실행
+                        sh 'docker compose up -d'
+                    }
+                }
+            }
+ 
+            post {
+                failure {
+                    sh 'echo "Bulid Docker Fail"'
+                }
+            }
+        }
+    }
+}
+
+```
+
+### Nginx 설정 파일(certbot 인증서 발급 필요)
+
+```
+server {
+    listen 80;
+    server_name j7b304.p.ssafy.io;
+
+    location / {
+        return 308 https://$host$request_uri;
+    }
+
+}
+
+server {
+    listen 443 ssl;
+    server_name j7b304.p.ssafy.io; # 도메인으로 변경
+
+    ssl_certificate /etc/letsencrypt/live/j7b304.p.ssafy.io/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/j7b304.p.ssafy.io/privkey.pem;
+
+
+    location  / {
+        proxy_pass http://localhost:8002;
+    }
+
+    location /api/v1/{
+        proxy_pass  http://127.0.0.1:8001/api/v1/;
+        proxy_set_header  X-Forwarded-Protocol  $scheme;
+    }
+
+
+}
+
+```
+
+
 <br>
 
-<div id = '3'>
+<br>
+
+<div id = '4'>
 
 # 기술 스택
 <div align=center></div>
@@ -198,7 +464,7 @@
 
 <br>
 
-<div id = '4'>
+<div id = '5'>
 
 # 프로젝트 산출물
 - 세부 내용 : 노션 참조
@@ -244,7 +510,7 @@
 
 <br>
 
-<div id="5">
+<div id="6">
 
 # 데이터 출처
 - 가구 Data : ikea-api 2.0.6
