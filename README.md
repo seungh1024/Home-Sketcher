@@ -30,8 +30,6 @@
 
 <h2> 실시간 가구 추천 쿼리 최적화 </h2>
 
-<br>
-
 ### 문제점
 ![image](https://github.com/seungh1024/Multi-Module-Board/assets/77014020/817dd342-07c0-4e20-862f-8452af120d3c)
 
@@ -55,7 +53,29 @@
 
 - 특정 기술이 좋다고 무작정 사용하는 것이 아닌, 사용했을 때 어떤 이점이 있는지 잘 파악하고 사용해야 한다는 것을 알게 되었습니다.
 
+<h2> Nginx + Docker 사용시 발생한 mixed contents 에러 </h2>
 
+### 그림 1
+<img width="1002" alt="스크린샷 2023-08-09 오후 5 50 25" src="https://github.com/seungh1024/Multi-Module-Board/assets/77014020/cf721603-8de1-41f1-ba5e-4e99edab6455">
+
+### 그림 2
+<img width="1017" alt="스크린샷 2023-08-09 오후 5 50 38" src="https://github.com/seungh1024/Multi-Module-Board/assets/77014020/d916d7c5-ec90-491c-9c62-c1d9a38fbb3d">
+
+### 문제점
+
+- Nginx를 Docker 이미지로 배포하여 https 설정 후 사용 시에 proxy_pass 설정에서 Docker 이미지로 배포한 서버로 요청을 보낼 시 mixed contents 문제가 발생했습니다.
+
+### 해결
+
+- 그림 1을 그려보며, Nginx 컨테이너 안에서는 https 설정을 하고 proxy_pass를 사용하여 http 서버로 요청을 보내기 때문에 다시 외부로 나갔다가 요청을 하러 들어오며 https의 환경에서 http 요청을 보내는 문제임을 확인했습니다.
+- 그림 2와 같이 Nginx를 Docker 이미지로 사용하지 않고 서버에 직접 설치하여 서비스 전체에 영향을 미치도록 적용했습니다.
+- 이후 proxy_pass에 localhost로 요청을 보내서 내부에서 Docker로의 접근을 가능하게 하여 해결했습니다.
+
+### 배운점
+
+- Docker의 장점만 생각하고 무작정 사용할 것이 아니라 사용하는 기술의 용도에 따라 고민하고 사용해야 하는 중요성을 깨달았습니다.
+- 해결하는 과정에서 Nginx의 다양한 기능을 알게 되었습니다. 방화벽이 1차로 요청을 거르면,  그 다음으로 특정 도메인에 대해 Nginx가 모든 요청을 먼저 받아볼 수 있습니다. 이 과정에서 특정 IP로부터의 접근 차단(블랙 리스트), 로드 밸런싱, 헤더 설정, ssl 인증서 적용, reverse proxy 역할, proxy_pass 등의 다양한 기능을 적용할 수 있음을 알게 되었습니다.
+- 위와 같이 Nginx는 수문장과 같은 역할로 이렇게 서비스 전체에 영향을 미칠 수 있는 기술은 서버에 직접 설치하여 사용하는 것이 좋습니다.
 
 <br/>
 <div id = '1'>
