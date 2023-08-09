@@ -56,10 +56,10 @@
 <h2> Nginx + Docker 사용시 발생한 mixed contents 에러 </h2>
 
 ### 그림 1
-<img width="1002" alt="스크린샷 2023-08-09 오후 5 50 25" src="https://github.com/seungh1024/Multi-Module-Board/assets/77014020/cf721603-8de1-41f1-ba5e-4e99edab6455">
+<img width="1002" alt="스크린샷 2023-08-09 오후 5 50 25" src="https://github.com/seungh1024/Multi-Module-Board/assets/77014020/cf721603-8de1-41f1-ba5e-4e99edab6455">{: width="100" height="100"}
 
 ### 그림 2
-<img width="1017" alt="스크린샷 2023-08-09 오후 5 50 38" src="https://github.com/seungh1024/Multi-Module-Board/assets/77014020/d916d7c5-ec90-491c-9c62-c1d9a38fbb3d">
+<img width="1017" alt="스크린샷 2023-08-09 오후 5 50 38" src="https://github.com/seungh1024/Multi-Module-Board/assets/77014020/d916d7c5-ec90-491c-9c62-c1d9a38fbb3d">{: width="100" height="100"}
 
 ### 문제점
 
