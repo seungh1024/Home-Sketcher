@@ -532,7 +532,7 @@ server {
 |          | Numpy                    |                  | 1.23.3   |
 |          | Pandas                    |                  | -   |
 |          | Keras                    |                  | 2.10.0   |
-|          | Tensiflow                    |                  | 2.10.0   |
+|          | Tensorflow                    |                  | 2.10.0   |
 | FrontEnd |                    |                      |          |
 |          | HTML5                   |                      | \-          |
 |          | CSS3                    |                      | \-          |
